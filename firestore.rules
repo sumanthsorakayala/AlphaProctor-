@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Document ID: uid
+    // Fields: uid, email, displayName, role, createdAt
+    //
+    // Collection: exams
+    // Document ID: examId
+    // Fields: id, title, description, code, creatorId, startTime, duration, questions, isActive
+    //
+    // Collection: submissions
+    // Document ID: submissionId
+    // Fields: id, examId, studentId, studentName, status, answers, warnings, logs, score, verified
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "sorakayalasumanth@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
+             data.email is string && data.email.size() > 0 && data.email.size() < 256 &&
+             data.role in ['admin', 'student'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 256)) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() < 64));
+    }
+
+    function isValidExam(data) {
+      return data.keys().hasAll(['title', 'code', 'creatorId', 'questions']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.code is string && data.code.size() > 0 &&
+             data.creatorId is string &&
+             data.questions is list;
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['examId', 'studentId', 'status']) &&
+             data.examId is string &&
+             data.studentId is string &&
+             data.status in ['active', 'submitted', 'terminated'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (isOwner(uid) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data) && 
+                      (request.resource.data.role == 'student' || isAdmin());
+      allow update: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data) &&
+                      (request.resource.data.role == resource.data.role || isAdmin() || request.resource.data.role == 'student');
+    }
+
+    match /exams/{examId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidExam(request.resource.data);
+      allow update: if isAdmin() && isValidExam(request.resource.data) && request.resource.data.creatorId == resource.data.creatorId;
+      allow delete: if isAdmin() && request.auth.uid == resource.data.creatorId;
+    }
+
+    match /submissions/{submissionId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.studentId) || isAdmin());
+      allow create: if isAuthenticated() && isOwner(request.resource.data.studentId) && isValidSubmission(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(resource.data.studentId) || isAdmin()) && isValidSubmission(request.resource.data);
+    }
+  }
+}

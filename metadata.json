@@ -1,0 +1,5 @@
+{
+  "name": "AlphaProctor",
+  "description": "Comprehensive AI-powered real-time proctoring solution for online examinations.",
+  "requestFramePermissions": ["camera", "microphone"]
+}

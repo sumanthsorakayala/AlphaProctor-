@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user (Student or Admin)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "student"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Exam": {
+      "title": "Exam",
+      "description": "Examination details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "code": { "type": "string", "description": "Unique join code" },
+        "creatorId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["objective", "subjective", "coding"] },
+              "text": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctAnswer": { "type": "string" },
+              "points": { "type": "number" }
+            }
+          }
+        },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["title", "code", "creatorId", "questions"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student exam attempt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "examId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "submitted", "terminated"] },
+        "answers": { "type": "object" },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "logs": { "type": "array", "items": { "type": "string" } },
+        "score": { "type": "number" },
+        "verified": { "type": "boolean", "description": "Identity verification status" }
+      },
+      "required": ["examId", "studentId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/exams/{examId}": {
+      "schema": "Exam",
+      "description": "Examination data"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Student attempts"
+    }
+  }
+}
